@@ -18,15 +18,15 @@ library(lubridate)
 
 # Introduction and Research Objectives
 
-This section defines the scope and significance of the project.
+Time series analysis is a statistical method used to analyze data collected over an extended period of time in order to identify trends and seasonal effects, allowing for forecasts and future predictions. This approach creates a deeper understanding of the underlying structure of the data. This project focuses on applying time series techniques to a crude oil economic dataset. Specifically, it concentrates on generating accurate models and prediction values in order to evaluate how oil prices impact the economy. 
 
 ## Problem Statement and Significance
 
-This section describes the specific research question or issue to be investigated. It should also explain why the selected time series is important, and why its analysis is of interest.
+The purpose of this study is to analyze previous oil price data in order to forecast future crude oil prices. Key time series components such as trend, seasonality, and stationarity will be analyzed in order to understand the data and make a prediction. Understanding these patterns will help economists understand the influence oil prices have on global markets and energy costs. Oils role is essential for everyday life activities such as transportation, manufacturing, and farming. Oil has important environmental implications as a nonrenewable fossil fuel, further emphasizing the importance of predicting price behavior. Therefore, studying oil price changes can help governments and businesses to make more informed economic and policy decisions. This dataset was sourced from the U.S. Energy Information Administration. Each data point represents daily oil prices in the US from May 1987 to November 2022. 
 
 ## Objectives
 
-The primary objective of this project is to [e.g., model the underlying stochastic process / forecast future values / identify structural breaks]. More specifically, this study aims to:
+This study aims to model the time series data in order to forecast future values and understand the structure of the plot. The goals for this project are; exploratory analysis, test whether a series is stationary, fit an appropriate model, use diagnostic tools to evaluate the model, and generate accurate predictions on future oil prices. 
 
 # Data Characterization and Exploratory Analysis
 
