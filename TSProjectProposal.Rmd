@@ -1,0 +1,78 @@
+---
+title: "Time Series Analysis: Final Project Proposal"
+author: "Abhinav Prathipati, Sarah Hoburg"
+date: "March 24, 2026"
+output: 
+  pdf_document:
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Load necessary libraries
+library(readr)
+library(TSA)
+library(forecast)
+library(lubridate)
+```
+
+# Introduction and Research Objectives
+
+Time series analysis is a statistical method used to analyze data collected over an extended period of time in order to identify trends and seasonal effects, allowing for forecasts and future predictions. This approach creates a deeper understanding of the underlying structure of the data. This project focuses on applying time series techniques to a crude oil economic dataset. Specifically, it concentrates on generating accurate models and prediction values in order to evaluate how oil prices impact the economy. 
+
+## Problem Statement and Significance
+
+The purpose of this study is to analyze previous oil price data in order to forecast future crude oil prices. Key time series components such as trend, seasonality, and stationarity will be analyzed in order to understand the data and make a prediction. Understanding these patterns will help economists understand the influence oil prices have on global markets and energy costs. Oils role is essential for everyday life activities such as transportation, manufacturing, and farming. Oil has important environmental implications as a nonrenewable fossil fuel, further emphasizing the importance of predicting price behavior. Therefore, studying oil price changes can help governments and businesses to make more informed economic and policy decisions. This dataset was sourced from the U.S. Energy Information Administration. Each data point represents daily oil prices in the US from May 1987 to November 2022. 
+
+## Objectives
+
+This study aims to model the time series data in order to forecast future values and understand the structure of the plot. The goals for this project are; exploratory analysis, test whether a series is stationary, fit an appropriate model, use diagnostic tools to evaluate the model, and generate accurate predictions on future oil prices. 
+
+# Data Characterization and Exploratory Analysis
+
+The dataset used in this analysis contains historical prices of Brent crude oil, which is one of the primary global benchmarks for oil pricing. It consists of two variables: the observation date and the corresponding oil price measured in U.S. dollars per barrel. The data span multiple years and are recorded at a daily frequency, capturing detailed movements in the oil market over time. Because trading does not occur on weekends and certain holidays, some dates may be missing, but the dataset still represents a high-frequency financial time series suitable for modeling and forecasting.
+
+## Data Source
+
+The data were obtained from an on online data repository, Kaggle. representing publicly available historical Brent oil price data. The observations are collected at a daily level, allowing for fine-grained analysis of price dynamics. This type of dataset is commonly used in economic and financial studies because it reflects real-world market behavior influenced by global supply, demand, and geopolitical factors.
+
+## Time Series Visualization
+
+```{r}
+brent <- read_csv("BrentOilPrices.csv", show_col_types = FALSE)
+
+# Handle mixed date formats in the file
+brent$Date <- parse_date_time(brent$Date, orders = c("d-b-y", "b d, Y"))
+brent <- brent[order(brent$Date), ]
+
+head(brent)
+summary(brent$Price)
+```
+
+```{r}
+Yt <- ts(brent$Price, frequency = 252)
+
+plot(
+  brent$Date, brent$Price, type = "l",
+  main = "Brent Oil Prices Over Time",
+  xlab = "Date", ylab = "Price"
+)
+```
+
+```{r}
+acf(Yt, main = "Sample ACF of Brent Oil Prices")
+pacf(Yt, main = "Sample PACF of Brent Oil Prices")
+```
+
+```{r}
+dYt <- diff(Yt)
+
+plot(
+  dYt, type = "l",
+  main = "Differenced Brent Oil Price Series",
+  ylab = "Differenced Price", xlab = "Time")
+```
+
+------------------------------------------------------------------------
+
+Based on the time series plot, ACF, PACF, and the differenced series, several important characteristics of the Brent oil price data become evident. The original time series shows a clear upward and downward movement over time, confirming the presence of a trend and nonstationarity. The ACF plot of the original series exhibits a slow decay, further indicating strong persistence and the need for differencing. After applying first differencing, the series appears more stable around a constant mean, suggesting that the trend has been effectively removed. The ACF of the differenced series cuts off more quickly, while the PACF shows significant spikes at early lags, which supports the selection of a low-order ARIMA model. There is no strong evidence of seasonality in either the ACF or PACF plots, as there are no repeating patterns at regular intervals. However, the data display noticeable cyclical behavior and periods of changing volatility, with some segments showing larger fluctuations than others. Additionally, abrupt changes in the level and variance of the series suggest possible structural breaks, likely driven by major economic or geopolitical events affecting oil markets.
