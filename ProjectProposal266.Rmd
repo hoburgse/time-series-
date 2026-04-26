@@ -145,26 +145,90 @@ summary(m1)
 res2 <- residuals(m1)
 ArchTest(res2)
 library(rugarch)
-spec <- ugarchspec(
-  variance.model = list(garchOrder = c(1,1)),
-  mean.model = list(armaOrder = c(0,0))
+egarch_spec <- ugarchspec(
+  variance.model = list(
+    model = "eGARCH",
+    garchOrder = c(2, 1)
+  ),
+  mean.model = list(
+    armaOrder = c(1, 0),
+    include.mean = FALSE
+  ),
+  distribution.model = "sstd"
 )
-fit <- ugarchfit(spec = spec, data = clean_rt)
-fit
+
+egarch_fit <- ugarchfit(
+  spec = egarch_spec,
+  data = rt,
+  solver = "hybrid"
+)
+
+egarch_fit
 ```
 
 ```{r}
-m2 <- arima(clean_rt, order=c(1,0,1))
-summary(m2)
-res3 <- residuals(m2)
-ArchTest(res3)
-library(rugarch)
-spec <- ugarchspec(
-  variance.model = list(garchOrder = c(1,1)),
-  mean.model = list(armaOrder = c(1,1))
+egarch.rt <- rugarch::residuals(egarch_fit)
+
+plot(
+  egarch.rt[, 1],
+  type = "l",
+  main = "eGARCH Model Residuals",
+  xlab = "Time",
+  ylab = "Residuals"
 )
-fit <- ugarchfit(spec = spec, data = clean_rt)
-fit
+```
+```{r}
+# Forecast
+forc <- ugarchforecast(egarch_fit, n.ahead = 252)
+
+# Extract forecasted volatility
+fc_vol <- as.numeric(sigma(forc))
+
+# Get actual dates from your data
+dates <- tail(brent$Date, length(sigma(egarch_fit)))
+
+# Last observed date
+last_date <- tail(dates, 1)
+
+# Create future dates
+future_dates <- seq(
+  from = last_date + 1,
+  by = "day",
+  length.out = 252
+)
+
+# Print forecast values
+forecast_df <- data.frame(
+  Date = future_dates,
+  Forecasted_Volatility = fc_vol
+)
+
+print(forecast_df)
+
+# Plot historical volatility and forecast
+plot(
+  dates,
+  as.numeric(sigma(egarch_fit)),
+  type = "l",
+  main = "eGARCH Volatility Forecast",
+  xlab = "Date",
+  ylab = "Volatility",
+  xlim = c(min(dates), max(future_dates))
+)
+
+lines(
+  future_dates,
+  fc_vol,
+  col = "red",
+  lty = 3,
+  lwd = 2
+)
+```
+
+```{r}
+n <- length(sigma2.hat)
+plot(sqrt(sigma2.hat), xlim=c(0, 450))
+lines((n+1):(n+10), forc@forecast$sigma, lty=3, col='red')
 ```
 
 ------------------------------------------------------------------------
