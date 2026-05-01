@@ -137,10 +137,11 @@ plot(rt,type='l')
 ```{r}
 clean_rt <- tsclean(rt)
 plot(clean_rt, type="l", main="Cleaned Returns")
+acf(clean_rt)
 ```
 
 ```{r}
-m1 <- arima(clean_rt, order = c(0,0,0))
+m1 <- forecast::auto.arima(clean_rt)
 summary(m1)
 res2 <- residuals(m1)
 ArchTest(res2)
@@ -151,7 +152,7 @@ egarch_spec <- ugarchspec(
     garchOrder = c(2, 1)
   ),
   mean.model = list(
-    armaOrder = c(1, 0),
+    armaOrder = c(0, 0, 2),
     include.mean = FALSE
   ),
   distribution.model = "sstd"
@@ -176,6 +177,7 @@ plot(
   xlab = "Time",
   ylab = "Residuals"
 )
+acf(egarch.rt, lag.max = 20)
 ```
 ```{r}
 # Forecast
@@ -229,6 +231,49 @@ lines(
 n <- length(sigma2.hat)
 plot(sqrt(sigma2.hat), xlim=c(0, 450))
 lines((n+1):(n+10), forc@forecast$sigma, lty=3, col='red')
+```
+```{r}
+library(ggplot2)
+
+# Make sure Date is Date type
+brent$Date <- as.Date(brent$Date)
+
+# Base plot
+p <- ggplot(brent, aes(x = Date, y = Price)) +
+  geom_line(color = "black") +
+  labs(title = "Brent Oil Prices Over Time",
+       x = "Date", y = "Price") +
+  theme_minimal()
+
+# Add vertical lines + labels for major events
+p +
+  geom_vline(xintercept = as.numeric(as.Date("1990-08-01")), linetype="dashed", color="red") +
+  annotate("text", x = as.Date("1990-08-01"), y = 130,
+           label = "Gulf War", angle = 90, vjust = -0.5, size = 3) +
+
+  geom_vline(xintercept = as.numeric(as.Date("2008-07-01")), linetype="dashed", color="blue") +
+  annotate("text", x = as.Date("2008-07-01"), y = 130,
+           label = "2008 Oil Spike", angle = 90, vjust = -0.5, size = 3) +
+
+  geom_vline(xintercept = as.numeric(as.Date("2009-01-01")), linetype="dashed", color="purple") +
+  annotate("text", x = as.Date("2009-01-01"), y = 130,
+           label = "Financial Crisis", angle = 90, vjust = -0.5, size = 3) +
+
+  geom_vline(xintercept = as.numeric(as.Date("2011-01-01")), linetype="dashed", color="darkgreen") +
+  annotate("text", x = as.Date("2011-01-01"), y = 130,
+           label = "Arab Spring", angle = 90, vjust = -0.5, size = 3) +
+
+  geom_vline(xintercept = as.numeric(as.Date("2014-06-01")), linetype="dashed", color="orange") +
+  annotate("text", x = as.Date("2014-06-01"), y = 130,
+           label = "Oil Glut (Shale Boom)", angle = 90, vjust = -0.5, size = 3) +
+
+  geom_vline(xintercept = as.numeric(as.Date("2020-03-01")), linetype="dashed", color="brown") +
+  annotate("text", x = as.Date("2020-03-01"), y = 130,
+           label = "COVID-19 Crash", angle = 90, vjust = -0.5, size = 3) +
+
+  geom_vline(xintercept = as.numeric(as.Date("2022-02-01")), linetype="dashed", color="darkred") +
+  annotate("text", x = as.Date("2022-02-01"), y = 130,
+           label = "Russia-Ukraine War", angle = 90, vjust = -0.5, size = 3)
 ```
 
 ------------------------------------------------------------------------
