@@ -1,0 +1,184 @@
+---
+title: 'Time Series Analysis: Final Project Proposal'
+author: "Abhinav Prathipati, Sarah Hoburg"
+date: "March 24, 2026"
+output:
+  html_document:
+    df_print: paged
+  pdf_document:
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Load necessary libraries
+library(readr)
+library(TSA)
+library(forecast)
+library(lubridate)
+library(rugarch)
+library(urca)
+library(FinTS)
+```
+
+# Introduction and Research Objectives
+
+Time series analysis is a statistical method used to analyze data collected over an extended period of time in order to identify trends and seasonal effects, allowing for forecasts and future predictions. This approach creates a deeper understanding of the underlying structure of the data. This project focuses on applying time series techniques to a crude oil economic dataset. Specifically, it concentrates on generating accurate models and prediction values in order to evaluate how oil prices impact the economy. 
+
+## Problem Statement and Significance
+
+The purpose of this study is to analyze previous oil price data in order to forecast future crude oil prices. Key time series components such as trend, seasonality, and stationarity will be analyzed in order to understand the data and make a prediction. Understanding these patterns will help economists understand the influence oil prices have on global markets and energy costs. Oils role is essential for everyday life activities such as transportation, manufacturing, and farming. Oil has important environmental implications as a nonrenewable fossil fuel, further emphasizing the importance of predicting price behavior. Therefore, studying oil price changes can help governments and businesses to make more informed economic and policy decisions. This dataset was sourced from the U.S. Energy Information Administration. Each data point represents daily oil prices in the US from May 1987 to November 2022. 
+
+## Objectives
+
+This study aims to model the time series data in order to forecast future values and understand the structure of the plot. The goals for this project are; exploratory analysis, test whether a series is stationary, fit an appropriate model, use diagnostic tools to evaluate the model, and generate accurate predictions on future oil prices. 
+
+# Data Characterization and Exploratory Analysis
+
+The dataset used in this analysis contains historical prices of Brent crude oil, which is one of the primary global benchmarks for oil pricing. It consists of two variables: the observation date and the corresponding oil price measured in U.S. dollars per barrel. The data span multiple years and are recorded at a daily frequency, capturing detailed movements in the oil market over time. Because trading does not occur on weekends and certain holidays, some dates may be missing, but the dataset still represents a high-frequency financial time series suitable for modeling and forecasting.
+
+## Data Source
+
+The data were obtained from an on online data repository, Kaggle. representing publicly available historical Brent oil price data. The observations are collected at a daily level, allowing for fine-grained analysis of price dynamics. This type of dataset is commonly used in economic and financial studies because it reflects real-world market behavior influenced by global supply, demand, and geopolitical factors.
+
+## Time Series Visualization
+
+```{r}
+brent <- read_csv("BrentOilPrices.csv", show_col_types = FALSE)
+
+# Handle mixed date formats in the file
+brent$Date <- parse_date_time(brent$Date, orders = c("d-b-y", "b d, Y"))
+brent <- brent[order(brent$Date), ]
+
+head(brent)
+summary(brent$Price)
+```
+We ran the data into rstudio so we could continue our exploratory data analysis using time series techniques. 
+```{r}
+Yt <- ts(brent$Price, frequency = 252)
+
+plot(
+  brent$Date, brent$Price, type = "l",
+  main = "Brent Oil Prices Over Time",
+  xlab = "Date", ylab = "Price"
+)
+```
+First we made a time series plot of our data. It demonstrated to be non-stationary with no constant mean or variance.
+```{r}
+acf(Yt, main = "Sample ACF of Brent Oil Prices")
+pacf(Yt, main = "Sample PACF of Brent Oil Prices")
+```
+Then we took the acf and pacf to test correlation, order, and if white noise is present by independence. Both of these plots are messy indicating we need to better the model. 
+```{r}
+dYt <- diff(Yt)
+
+plot(
+  dYt, type = "l",
+  main = "Differenced Brent Oil Price Series",
+  ylab = "Differenced Price", xlab = "Time")
+
+acf(dYt, main = "Sample ACF of Brent Oil Prices")
+pacf(dYt, main = "Sample PACF of Brent Oil Prices")
+```
+Secondly, we took the difference of the time series plot. According to the unit root test, our data only required the first difference. In time series analysis we take a difference when the plots variance and mean are not constant. Taking the difference created a constant mean = 0, but did not make the variance constant. This indicates that we might need a more complex technique like ARCH/GARCH. We took the acf and pacf of the first difference and they were identical. They still are not significant enough to make a prediction. 
+```{r}
+model <- arima(Yt, order = c(1,1,1))
+
+res_arima <- residuals(model)
+
+# 1. Plot residuals
+plot(res_arima, type = "l",
+     main = "ARIMA Residuals",
+     xlab = "Time",
+     ylab = "Residuals")
+
+# 2. ACF of residuals (should look random)
+acf(res_arima, main = "ACF of ARIMA Residuals")
+
+# 3. ACF of squared residuals (checks volatility clustering)
+acf(res_arima^2, main = "ACF of Squared ARIMA Residuals")
+
+# 4. Ljung-Box test (tests independence)
+Box.test(res_arima, lag = 20, type = "Ljung-Box")
+
+
+
+```
+We fitted our differenced data to an arima(1,1,1) model (arima(p,d,q)). We thought that the previous acf and pacf suggested an AR(1) and MA(1). As well as taking the first difference d=1. Then, we took the residuals of the arima and plotted their acf and residuals squared acf. Squaring the residuals and plotting the acf allowed us to check volatility clustering and autocorrelation. Then we ran the residual diagnostics, the Ljung-Box test to test for independence. The Ljung-Box test concluded the residuals were not independent. In conclusion, the arima (1,1,1) is too simple of a model to capture our data's volatility.  
+```{r}
+rt <- diff(log(brent$Price))*100
+plot(rt)
+acf(rt)
+pacf(rt)
+qqnorm(rt)
+qqline(rt)
+```
+Third, we took the difference of the residuals. We plotted the acf, pacf, and qq plot. Taking the log of the residuals gave us returns and stabilized the variance. The qq-plot was heavily tailed proving the ARIMA model was not enough. The acf and pacf were identical again.  
+```{r}
+acf(rt^2)
+pacf(rt^2)
+```
+Then, we took the acf and pacf of the log returns squared. This made the plots a little more readable. 
+```{r}
+auto.arima(rt)
+m0 <- arima(rt, order=c(0,0,0))
+summary(m0)
+residuals(m0)
+plot(residuals(m0), 
+     type="o", main="Residual Plot", ylab="Residuals")
+acf(residuals(m0))
+qqnorm(residuals(m0))
+qqline(residuals(m0))
+Box.test(residuals(m0), lag=10, type="Ljung-Box")
+```
+Because the arima(1,1,1) was not significant we had to continue testing models. We ran an auto.arima to see what the computer thought. It ouputed an arima(0,0,0). So we fit the returns to arima(0,0,0) plotted their residuals, acf, and qq plot. The qq plot was still not normal and the acf plot was still not significant. 
+```{r}
+ArchTest(residuals(m0))
+```
+We took the arch test to make sure we wanted to do an arch garch model. 
+```{r}
+detectAO(m0)
+tsoutliers(rt)
+plot(rt,type='l')
+```
+Fourth, we cleaned the outliers. The qq plot suggested their were many outliers as well as the historical plot. Using detectAO we found 70+ outliers most likely due to the COVID crash and 2008 recession. 
+```{r}
+clean_rt <- tsclean(rt)
+plot(clean_rt, type="l", main="Cleaned Returns")
+```
+Cleaning the returns finally made our data stationary by making the variance constant. 
+```{r}
+m1 <- arima(clean_rt, order = c(0,0,0))
+summary(m1)
+res2 <- residuals(m1)
+ArchTest(res2)
+library(rugarch)
+spec <- ugarchspec(
+  variance.model = list(garchOrder = c(1,1)),
+  mean.model = list(armaOrder = c(0,0))
+)
+fit <- ugarchfit(spec = spec, data = clean_rt)
+fit
+```
+Finally, we were able to fit an arch/garch model. We fit tested many models; arima(0,0,0), arima(1,0,1), sGarch(1,1), eGarch(1,1), eGarch(1,1), and eGarch(2,1). eGarch(2,1) was our best fit. We changed the distribution to student sketwed t-distribution. 
+
+```{r}
+m2 <- arima(clean_rt, order=c(1,0,1))
+summary(m2)
+res3 <- residuals(m2)
+ArchTest(res3)
+library(rugarch)
+spec <- ugarchspec(
+  variance.model = list(garchOrder = c(1,1)),
+  mean.model = list(armaOrder = c(1,1))
+)
+fit <- ugarchfit(spec = spec, data = clean_rt)
+fit
+```
+
+
+------------------------------------------------------------------------
+
+Based on the time series plot, ACF, PACF, and the differenced series, several important characteristics of the Brent oil price data become evident. The original time series shows a clear upward and downward movement over time, confirming the presence of a trend and nonstationarity. The ACF plot of the original series exhibits a slow decay, further indicating strong persistence and the need for differencing. After applying first differencing, the series appears more stable around a constant mean, suggesting that the trend has been effectively removed. The ACF of the differenced series cuts off more quickly, while the PACF shows significant spikes at early lags, which supports the selection of a low-order ARIMA model. There is no strong evidence of seasonality in either the ACF or PACF plots, as there are no repeating patterns at regular intervals. However, the data display noticeable cyclical behavior and periods of changing volatility, with some segments showing larger fluctuations than others. Additionally, abrupt changes in the level and variance of the series suggest possible structural breaks, likely driven by major economic or geopolitical events affecting oil markets.
+
+
