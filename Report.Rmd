@@ -148,35 +148,143 @@ plot(clean_rt, type="l", main="Cleaned Returns")
 ```
 Cleaning the returns finally made our data stationary by making the variance constant. 
 ```{r}
-m1 <- arima(clean_rt, order = c(0,0,0))
+m1 <- forecast::auto.arima(clean_rt)
 summary(m1)
 res2 <- residuals(m1)
 ArchTest(res2)
 library(rugarch)
-spec <- ugarchspec(
-  variance.model = list(garchOrder = c(1,1)),
-  mean.model = list(armaOrder = c(0,0))
+egarch_spec <- ugarchspec(
+  variance.model = list(
+    model = "eGARCH",
+    garchOrder = c(2, 1)
+  ),
+  mean.model = list(
+    armaOrder = c(0, 0, 2),
+    include.mean = FALSE
+  ),
+  distribution.model = "sstd"
 )
-fit <- ugarchfit(spec = spec, data = clean_rt)
-fit
+
+egarch_fit <- ugarchfit(
+  spec = egarch_spec,
+  data = rt,
+  solver = "hybrid"
+)
+
+egarch_fit
 ```
-Finally, we were able to fit an arch/garch model. We fit tested many models; arima(0,0,0), arima(1,0,1), sGarch(1,1), eGarch(1,1), eGarch(1,1), and eGarch(2,1). eGarch(2,1) was our best fit. We changed the distribution to student sketwed t-distribution. 
+We fit an auto arima to the cleaned returns and take the residuals. We justified it needed a garch model by the arch test. 
+```{r}
+egarch.rt <- rugarch::residuals(egarch_fit)
+
+plot(
+  egarch.rt[, 1],
+  type = "l",
+  main = "eGARCH Model Residuals",
+  xlab = "Time",
+  ylab = "Residuals"
+)
+acf(egarch.rt, lag.max = 20)
+```
+We found the best model was eGARCH (2,1) and forecasted the volatility. 
+```{r}
+# Forecast
+forc <- ugarchforecast(egarch_fit, n.ahead = 252)
+
+# Extract forecasted volatility
+fc_vol <- as.numeric(sigma(forc))
+
+# Get actual dates from your data
+dates <- tail(brent$Date, length(sigma(egarch_fit)))
+
+# Last observed date
+last_date <- tail(dates, 1)
+
+# Create future dates
+future_dates <- seq(
+  from = last_date + 1,
+  by = "day",
+  length.out = 252
+)
+
+# Print forecast values
+forecast_df <- data.frame(
+  Date = future_dates,
+  Forecasted_Volatility = fc_vol
+)
+
+print(forecast_df)
+
+# Plot historical volatility and forecast
+plot(
+  dates,
+  as.numeric(sigma(egarch_fit)),
+  type = "l",
+  main = "eGARCH Volatility Forecast",
+  xlab = "Date",
+  ylab = "Volatility",
+  xlim = c(min(dates), max(future_dates))
+)
+
+lines(
+  future_dates,
+  fc_vol,
+  col = "red",
+  lty = 3,
+  lwd = 2
+)
+```
+The forecast of volitility suggested an upward trend. We can assume that another major historical event can cause would cause this spike. 
+```{r}
+n <- length(sigma2.hat)
+plot(sqrt(sigma2.hat), xlim=c(0, 450))
+lines((n+1):(n+10), forc@forecast$sigma, lty=3, col='red')
+```
 
 ```{r}
-m2 <- arima(clean_rt, order=c(1,0,1))
-summary(m2)
-res3 <- residuals(m2)
-ArchTest(res3)
-library(rugarch)
-spec <- ugarchspec(
-  variance.model = list(garchOrder = c(1,1)),
-  mean.model = list(armaOrder = c(1,1))
-)
-fit <- ugarchfit(spec = spec, data = clean_rt)
-fit
+library(ggplot2)
+
+# Make sure Date is Date type
+brent$Date <- as.Date(brent$Date)
+
+# Base plot
+p <- ggplot(brent, aes(x = Date, y = Price)) +
+  geom_line(color = "black") +
+  labs(title = "Brent Oil Prices Over Time",
+       x = "Date", y = "Price") +
+  theme_minimal()
+
+# Add vertical lines + labels for major events
+p +
+  geom_vline(xintercept = as.numeric(as.Date("1990-08-01")), linetype="dashed", color="red") +
+  annotate("text", x = as.Date("1990-08-01"), y = 130,
+           label = "Gulf War", angle = 90, vjust = -0.5, size = 3) +
+
+  geom_vline(xintercept = as.numeric(as.Date("2008-07-01")), linetype="dashed", color="blue") +
+  annotate("text", x = as.Date("2008-07-01"), y = 130,
+           label = "2008 Oil Spike", angle = 90, vjust = -0.5, size = 3) +
+
+  geom_vline(xintercept = as.numeric(as.Date("2009-01-01")), linetype="dashed", color="purple") +
+  annotate("text", x = as.Date("2009-01-01"), y = 130,
+           label = "Financial Crisis", angle = 90, vjust = -0.5, size = 3) +
+
+  geom_vline(xintercept = as.numeric(as.Date("2011-01-01")), linetype="dashed", color="darkgreen") +
+  annotate("text", x = as.Date("2011-01-01"), y = 130,
+           label = "Arab Spring", angle = 90, vjust = -0.5, size = 3) +
+
+  geom_vline(xintercept = as.numeric(as.Date("2014-06-01")), linetype="dashed", color="orange") +
+  annotate("text", x = as.Date("2014-06-01"), y = 130,
+           label = "Oil Glut (Shale Boom)", angle = 90, vjust = -0.5, size = 3) +
+
+  geom_vline(xintercept = as.numeric(as.Date("2020-03-01")), linetype="dashed", color="brown") +
+  annotate("text", x = as.Date("2020-03-01"), y = 130,
+           label = "COVID-19 Crash", angle = 90, vjust = -0.5, size = 3) +
+
+  geom_vline(xintercept = as.numeric(as.Date("2022-02-01")), linetype="dashed", color="darkred") +
+  annotate("text", x = as.Date("2022-02-01"), y = 130,
+           label = "Russia-Ukraine War", angle = 90, vjust = -0.5, size = 3)
 ```
-
-
+This is our historical plot of the orginial time series. 
 ------------------------------------------------------------------------
 
 Based on the time series plot, ACF, PACF, and the differenced series, several important characteristics of the Brent oil price data become evident. The original time series shows a clear upward and downward movement over time, confirming the presence of a trend and nonstationarity. The ACF plot of the original series exhibits a slow decay, further indicating strong persistence and the need for differencing. After applying first differencing, the series appears more stable around a constant mean, suggesting that the trend has been effectively removed. The ACF of the differenced series cuts off more quickly, while the PACF shows significant spikes at early lags, which supports the selection of a low-order ARIMA model. There is no strong evidence of seasonality in either the ACF or PACF plots, as there are no repeating patterns at regular intervals. However, the data display noticeable cyclical behavior and periods of changing volatility, with some segments showing larger fluctuations than others. Additionally, abrupt changes in the level and variance of the series suggest possible structural breaks, likely driven by major economic or geopolitical events affecting oil markets.
