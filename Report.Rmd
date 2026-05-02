@@ -335,4 +335,4 @@ resid_adj <- residuals(garch_fit_adj, standardize = TRUE)
 # ACF of GARCH residuals
 acf(resid_adj, lag.max = 40, main="ACF: eGARCH Standardized Residuals (Adjusted)")
 ```
-We finally obtained a good-looking ACF plot that has 1 significant spike. To improve this conclusion we could adjust the lags. 
+We finally obtained a good-looking ACF plot that has 1 significant spike. The fit model is an arma(1,1) + eGARCH (1,1). To improve this conclusion we could adjust the lags. 
