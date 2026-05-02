@@ -19,6 +19,7 @@ library(lubridate)
 library(rugarch)
 library(urca)
 library(FinTS)
+library(tsoutliers)
 ```
 
 # Introduction and Research Objectives
@@ -289,4 +290,49 @@ This is our historical plot of the orginial time series.
 
 Based on the time series plot, ACF, PACF, and the differenced series, several important characteristics of the Brent oil price data become evident. The original time series shows a clear upward and downward movement over time, confirming the presence of a trend and nonstationarity. The ACF plot of the original series exhibits a slow decay, further indicating strong persistence and the need for differencing. After applying first differencing, the series appears more stable around a constant mean, suggesting that the trend has been effectively removed. The ACF of the differenced series cuts off more quickly, while the PACF shows significant spikes at early lags, which supports the selection of a low-order ARIMA model. There is no strong evidence of seasonality in either the ACF or PACF plots, as there are no repeating patterns at regular intervals. However, the data display noticeable cyclical behavior and periods of changing volatility, with some segments showing larger fluctuations than others. Additionally, abrupt changes in the level and variance of the series suggest possible structural breaks, likely driven by major economic or geopolitical events affecting oil markets.
 
+Improvements:
+```{r}
+clean_rt <- tsclean(rt)
+plot(clean_rt, type="l", main="Cleaned returns")
+acf(clean_rt, lag.max = 40, main= "ACF: eGARCH Stand. Residuals")
+```
+This is the acf of our cleaned returns that do not include the outliers. 
+We will use detectIO to put the outliers back in and look at the garch model acf plot. 
 
+```{r}
+
+fit_arima <- auto.arima(rt)
+
+io <- detectIO(fit_arima)
+
+rt_adjusted <- rt
+
+fitted_vals <- fitted(fit_arima)
+outlier_index <- io$ind
+
+rt_adjusted[outlier_index] <- fitted_vals[outlier_index]
+
+plot(rt_adjusted, type="l", main="Adjusted Returns (IO corrected)")
+
+acf(rt_adjusted, lag.max = 40, main="ACF: Adjusted Returns")
+```
+We fit the ARIMA to the returns, then deteched IOs. Importantly, we replaced the outliers with the fitted values and plotted the adjusted return. This plot looks the most stationary. The mean is at 0 and the variance is constant. The volatility spikes represent a little bit of seasonality. The ACF of the adjusted returns looks similar to the series residual acf plot. 
+```{r}
+library(rugarch)
+
+spec <- ugarchspec(
+  variance.model = list(model = "eGARCH", garchOrder = c(1,1)),
+  mean.model = list(armaOrder = c(1,1)),
+  distribution.model = "std"
+)
+
+# Fit on adjusted data
+garch_fit_adj <- ugarchfit(spec = spec, data = rt_adjusted)
+
+# Standardized residuals
+resid_adj <- residuals(garch_fit_adj, standardize = TRUE)
+
+# ACF of GARCH residuals
+acf(resid_adj, lag.max = 40, main="ACF: eGARCH Standardized Residuals (Adjusted)")
+```
+We finally obtained a good-looking ACF plot that has 1 significant spike. To improve this conclusion we could adjust the lags. 
